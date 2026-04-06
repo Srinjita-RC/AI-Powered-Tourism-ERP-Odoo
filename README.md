@@ -30,7 +30,7 @@
 | **Styling** | Custom CSS (`tourism.css`) |
 | **Tab Navigation** | Custom JS (`tab_navigator.js`) |
 | **Map** | Leaflet.js + OpenStreetMap |
-| **PDF Generation** | ReportLab + NotoSans (multi-language) |
+| **PDF Generation** | ReportLab |
 | **Database** | PostgreSQL |
 | **Platform** | Odoo ERP (Community Edition) |
 
