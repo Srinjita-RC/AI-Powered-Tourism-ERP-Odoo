@@ -17,8 +17,6 @@
 | 📄 PDF Export | Branded itinerary PDF with multi-language support |
 | ✅ Input Validation | Email, phone, and field-level validation built-in |
 | 🌐 Public Booking Page | Standalone HTML booking page with live crowd heatmap |
-| 🗺️ Live Crowd Heatmap | Real-time crowd density map via Leaflet.js |
-| 📧 Email Notifications | Auto-email tourists on every status change |
 | 🧭 Tab Navigation | Smooth multi-tab UI (Profile → Trip → Interests → Itinerary → Map) |
 
 ---
