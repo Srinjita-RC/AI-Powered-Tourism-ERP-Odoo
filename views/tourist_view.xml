@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- LIST VIEW -->
+    <record id="view_tourist_list" model="ir.ui.view">
+        <field name="name">tourist.profile.list</field>
+        <field name="model">tourist.profile</field>
+        <field name="arch" type="xml">
+            <list decoration-success="status == 'optimized'"
+                  decoration-warning="status == 'planned'"
+                  decoration-muted="status == 'done'">
+                <field name="name"/>
+                <field name="nationality"/>
+                <field name="destination"/>
+                <field name="checkin_date"/>
+                <field name="checkout_date"/>
+                <field name="num_days"/>
+                <field name="budget_amount"/>
+                <field name="currency"/>
+                <field name="budget_tier"/>
+                <field name="status"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- FORM VIEW (your existing one, unchanged) -->
+    <record id="view_tourist_form" model="ir.ui.view">
+        <field name="name">tourist.profile.view.form</field>
+        <field name="model">tourist.profile</field>
+        <field name="arch" type="xml">
+            <form string="Tourist Profile">
+                <header>
+                    <button name="action_download_pdf"
+                            string="Download PDF Report"
+                            type="object"
+                            class="btn btn-success"
+                            invisible="status != 'optimized'"/>
+                    <field name="status" widget="statusbar"
+                           statusbar_visible="draft,planned,optimized,done"/>
+                </header>
+
+                <sheet>
+                    <notebook>
+
+                        <!-- TAB 1 -->
+                        <page string="📋 Basic Info" name="tab_profile">
+                            <group string="Personal Details">
+                                <field name="name"/>
+                                <field name="email"/>
+                                <field name="nationality"/>
+                                <field name="phone_code" readonly="1"/>
+                                <field name="phone"/>
+                                <field name="language"/>
+                                <field name="language_note" readonly="1"/>
+                            </group>
+                            <div style="margin-top:20px;">
+                                <button name="action_go_tab_trip"
+                                        type="object"
+                                        string="Next"
+                                        class="btn btn-primary"/>
+                            </div>
+                        </page>
+
+                        <!-- TAB 2 -->
+                        <page string="✈️ Trip Details" name="tab_trip">
+                            <group string="Destination">
+                                <field name="continent"/>
+                                <field name="destination"/>
+                                <field name="transport"/>
+                            </group>
+                            <group string="📅 Dates">
+                                <field name="checkin_date"/>
+                                <field name="checkout_date"/>
+                                <field name="num_days" readonly="1"/>
+                            </group>
+                            <group string="💰 Budget">
+                                <field name="currency"/>
+                                <field name="budget_amount"/>
+                                <field name="budget_in_inr" readonly="1"/>
+                                <field name="budget_tier" readonly="1"/>
+                            </group>
+                            <div style="margin-top:20px; display:flex; gap:10px;">
+                                <button name="action_go_tab_profile"
+                                        type="object"
+                                        string="Back"
+                                        class="btn btn-secondary"/>
+                                <button name="action_go_tab_interests"
+                                        type="object"
+                                        string="Next"
+                                        class="btn btn-primary"/>
+                            </div>
+                        </page>
+
+                        <!-- TAB 3 -->
+                        <page string="❤️ Interests" name="tab_interests">
+                            <group string="Select all that apply">
+                                <field name="interest_adventure"/>
+                                <field name="interest_food"/>
+                                <field name="interest_culture"/>
+                                <field name="interest_beach"/>
+                                <field name="interest_wildlife"/>
+                                <field name="interest_wellness"/>
+                                <field name="interest_photography"/>
+                                <field name="interest_shopping"/>
+                            </group>
+                            <div style="margin-top:20px; display:flex; gap:10px;">
+                                <button name="action_go_tab_trip"
+                                        type="object"
+                                        string="Back"
+                                        class="btn btn-secondary"/>
+                                <button name="action_generate_plan"
+                                        string="Generate Plan"
+                                        type="object"
+                                        class="btn btn-primary"/>
+                            </div>
+                        </page>
+
+                        <!-- TAB 4 -->
+                        <page string="✈️ Travel Plan" name="tab_itinerary">
+                            <field name="plan_html" nolabel="1" widget="html"/>
+                            <div style="margin-top:20px; display:flex; gap:10px;">
+                                <button name="action_go_tab_interests"
+                                        type="object"
+                                        string="Back"
+                                        class="btn btn-secondary"/>
+                                <button name="action_go_tab_destination"
+                                        type="object"
+                                        string="Next"
+                                        class="btn btn-primary"/>
+                            </div>
+                        </page>
+
+                        <!-- TAB 5 -->
+                        <page string="📍 Destination Info" name="tab_destination">
+                            <field name="country_highlights" nolabel="1" widget="html"/>
+                            <div style="margin-top:20px; display:flex; gap:10px;">
+                                <button name="action_go_tab_itinerary"
+                                        type="object"
+                                        string="Back"
+                                        class="btn btn-secondary"/>
+                                <button name="action_go_tab_reviews"
+                                        type="object"
+                                        string="Next"
+                                        class="btn btn-primary"/>
+                            </div>
+                        </page>
+
+                        <!-- TAB 6 -->
+                        <page string="⭐ Reviews" name="tab_reviews">
+                            <field name="real_reviews" nolabel="1" widget="html"/>
+                            <div style="margin-top:20px; display:flex; gap:10px;">
+                                <button name="action_go_tab_destination"
+                                        type="object"
+                                        string="Back"
+                                        class="btn btn-secondary"/>
+                                <button name="action_go_tab_map"
+                                        type="object"
+                                        string="Next"
+                                        class="btn btn-primary"/>
+                            </div>
+                        </page>
+
+                        <!-- TAB 7 -->
+                        <page string="🌤️ Live Weather and Map" name="tab_map">
+                            <field name="weather_info" nolabel="1" widget="html"/>
+                            <field name="crowd_map" nolabel="1" widget="html"/>
+                            <div style="margin-top:20px;">
+                                <button name="action_go_tab_reviews"
+                                        type="object"
+                                        string="Back"
+                                        class="btn btn-secondary"/>
+                            </div>
+                        </page>
+
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- GRAPH VIEW -->
+    <record id="view_tourist_graph" model="ir.ui.view">
+        <field name="name">tourist.profile.graph</field>
+        <field name="model">tourist.profile</field>
+        <field name="arch" type="xml">
+            <graph string="Tourists by Destination" type="pie">
+                <field name="destination" type="row"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- PIVOT VIEW -->
+    <record id="view_tourist_pivot" model="ir.ui.view">
+        <field name="name">tourist.profile.pivot</field>
+        <field name="model">tourist.profile</field>
+        <field name="arch" type="xml">
+            <pivot string="Tourist Overview">
+                <field name="nationality" type="row"/>
+                <field name="destination" type="col"/>
+                <field name="budget_in_inr" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- ACTION — defined HERE, referenced in menu.xml -->
+    <record id="action_tourist_profile" model="ir.actions.act_window">
+        <field name="name">Tourists</field>
+        <field name="res_model">tourist.profile</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ANALYTICS ACTION — also defined here to avoid duplication -->
+    <record id="action_tourist_analytics" model="ir.actions.act_window">
+        <field name="name">Tourist Analytics</field>
+        <field name="res_model">tourist.profile</field>
+        <field name="view_mode">graph,pivot,list</field>
+    </record>
+
+</odoo>

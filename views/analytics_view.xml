@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ═══ DASHBOARD FORM VIEW ═══ -->
+    <record id="view_analytics_dashboard_form" model="ir.ui.view">
+        <field name="name">srk.analytics.dashboard.form</field>
+        <field name="model">srk.analytics.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Tourism Analytics Dashboard" create="false" delete="false">
+                <sheet>
+                    <div class="o_form_sheet_bg">
+                        <field name="dashboard_html"
+                               widget="html"
+                               nolabel="1"
+                               readonly="1"
+                               sanitize="0"
+                               style="min-height:800px;"/>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ═══ BOOKING ANALYTICS — existing pivot + graph ═══ -->
+    <record id="view_booking_pivot" model="ir.ui.view">
+        <field name="name">srk.booking.pivot</field>
+        <field name="model">srk.booking</field>
+        <field name="arch" type="xml">
+            <pivot string="Booking Analytics">
+                <field name="tourist_id" type="row"/>
+                <field name="hotel_id" type="row"/>
+                <field name="total_amount" type="measure"/>
+                <field name="num_nights" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_booking_graph" model="ir.ui.view">
+        <field name="name">srk.booking.graph</field>
+        <field name="model">srk.booking</field>
+        <field name="arch" type="xml">
+            <graph string="Revenue Chart" type="bar">
+                <field name="booking_status" type="row"/>
+                <field name="total_amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- ═══ TOURIST ANALYTICS ═══ -->
+    <record id="view_tourist_graph" model="ir.ui.view">
+        <field name="name">tourist.profile.graph</field>
+        <field name="model">tourist.profile</field>
+        <field name="arch" type="xml">
+            <graph string="Tourists by Destination" type="pie">
+                <field name="destination" type="row"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_tourist_pivot" model="ir.ui.view">
+        <field name="name">tourist.profile.pivot</field>
+        <field name="model">tourist.profile</field>
+        <field name="arch" type="xml">
+            <pivot string="Tourist Overview">
+                <field name="nationality" type="row"/>
+                <field name="destination" type="col"/>
+                <field name="budget_in_inr" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- ═══ SAFETY ANALYTICS ═══ -->
+    <record id="view_safety_graph" model="ir.ui.view">
+        <field name="name">srk.safety.alert.graph</field>
+        <field name="model">srk.safety.alert</field>
+        <field name="arch" type="xml">
+            <graph string="Alerts by Severity" type="pie">
+                <field name="severity" type="row"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- ═══ ACTIONS ═══ -->
+    <record id="action_analytics_dashboard" model="ir.actions.act_window">
+        <field name="name">Live Dashboard</field>
+        <field name="res_model">srk.analytics.dashboard</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+    </record>
+
+    <record id="action_booking_analytics" model="ir.actions.act_window">
+        <field name="name">Booking Analytics</field>
+        <field name="res_model">srk.booking</field>
+        <field name="view_mode">graph,pivot,list</field>
+    </record>
+
+    <record id="action_tourist_analytics" model="ir.actions.act_window">
+        <field name="name">Tourist Analytics</field>
+        <field name="res_model">tourist.profile</field>
+        <field name="view_mode">graph,pivot,list</field>
+    </record>
+
+    <record id="action_safety_analytics" model="ir.actions.act_window">
+        <field name="name">Safety Analytics</field>
+        <field name="res_model">srk.safety.alert</field>
+        <field name="view_mode">graph,pivot,list</field>
+    </record>
+
+</odoo>

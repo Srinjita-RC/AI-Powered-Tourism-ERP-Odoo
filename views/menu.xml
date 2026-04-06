@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================== -->
+    <!-- MENUS ONLY — all actions are
+         defined in their respective view
+         XML files. Do NOT redefine them
+         here to avoid duplicate ID errors.  -->
+    <!-- ================================== -->
+
+    <!-- Root Menu -->
+    <menuitem id="menu_srk_root"
+              name="🌍 SRK Tourism"
+              sequence="10"/>
+
+    <!-- Tourists -->
+    <menuitem id="menu_tourists"
+              name="🧑 Tourists"
+              parent="menu_srk_root"
+              action="action_tourist_profile"
+              sequence="1"/>
+
+    <!-- Booking ERP submenu -->
+    <menuitem id="menu_booking_root"
+              name="🏨 Booking ERP"
+              parent="menu_srk_root"
+              sequence="2"/>
+
+    <menuitem id="menu_bookings"
+              name="📋 Bookings"
+              parent="menu_booking_root"
+              action="action_booking"
+              sequence="1"/>
+
+    <menuitem id="menu_hotels"
+              name="🏨 Hotels"
+              parent="menu_booking_root"
+              action="action_hotel"
+              sequence="2"/>
+
+    <!-- Analytics submenu -->
+    <menuitem id="menu_analytics_root"
+              name="📊 Analytics"
+              parent="menu_srk_root"
+              sequence="3"/>
+
+    <menuitem id="menu_live_dashboard"
+              name="🔴 Live Dashboard"
+              parent="menu_analytics_root"
+              action="action_analytics_dashboard"
+              sequence="0"/>
+
+    <menuitem id="menu_booking_analytics"
+              name="💰 Revenue and Bookings"
+              parent="menu_analytics_root"
+              action="action_booking_analytics"
+              sequence="1"/>
+
+    <menuitem id="menu_tourist_analytics"
+              name="✈️ Tourist Destinations"
+              parent="menu_analytics_root"
+              action="action_tourist_analytics"
+              sequence="2"/>
+
+    <menuitem id="menu_safety_analytics"
+              name="🛡️ Safety Overview"
+              parent="menu_analytics_root"
+              action="action_safety_analytics"
+              sequence="3"/>
+
+    <!-- Safety Alerts -->
+    <menuitem id="menu_safety"
+              name="⚠️ Safety Alerts"
+              parent="menu_srk_root"
+              action="action_safety"
+              sequence="4"/>
+
+</odoo>

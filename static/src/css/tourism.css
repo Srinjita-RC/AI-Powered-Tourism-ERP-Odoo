@@ -1,0 +1,89 @@
+.o_form_sheet_bg {
+    background-image: url('/srk_tourism_erp/static/description/travel_bg.jpg') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+}
+
+.o_form_sheet {
+    background: rgba(255, 255, 255, 0.90) !important;
+}
+
+.o_group {
+    background: transparent !important;
+}
+
+.o_notebook {
+    background: transparent !important;
+}
+
+.o_notebook .nav-tabs {
+    background: rgba(255,255,255,0.40) !important;
+}
+
+.o_field_widget {
+    background: transparent !important;
+}
+
+* {
+    --o-form-sheet-bg: transparent !important;
+}
+
+/* Generate button */
+.o_form_button_save,
+.btn-primary {
+    background: linear-gradient(135deg, #1a8c50, #2db46e) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    color: white !important;
+    font-weight: 500 !important;
+    padding: 8px 20px !important;
+    transition: opacity 0.2s !important;
+}
+
+.btn-primary:hover {
+    opacity: 0.85 !important;
+}
+
+/* Status bar */
+.o_statusbar_status button {
+    border-radius: 20px !important;
+    padding: 4px 14px !important;
+}
+
+/* Tab styling */
+.o_notebook .nav-link {
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+    color: #1a8c50 !important;
+}
+
+.o_notebook .nav-link.active {
+    background: #1a8c50 !important;
+    color: white !important;
+}
+
+/* Form headings */
+.o_group_name {
+    color: #1a8c50 !important;
+    font-weight: 600 !important;
+    letter-spacing: 1px !important;
+}
+
+/* Emoji fallback fix */
+.o_form_view,
+.o_form_view label,
+.o_form_label,
+.o_field_widget,
+.o_field_char,
+.o_notebook .nav-link,
+.o_notebook .nav-item,
+.o_group_name,
+.o_main_navbar,
+.o_menu_sections,
+.o_nav_entry,
+.dropdown-item,
+span {
+    font-family: "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif !important;
+}

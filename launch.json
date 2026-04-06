@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Odoo19",
+            "type": "debugpy",
+            "request": "launch",
+            "stopOnEntry": false,
+            "python": "C:\\Users\\97158\\OneDrive\\Desktop\\Odoo_Software\\python\\python.exe",
+            "program": "${workspaceFolder}\\odoo-bin",
+            "console": "integratedTerminal",
+            "args": [
+                "--config=${workspaceFolder}\\odoo.conf",
+                "-d",
+                "srk",
+                "-u",
+                "srk_tourism_erp"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "envFile": "${workspaceFolder}/.env",
+            "redirectOutput": true
+        }
+    ]
+}

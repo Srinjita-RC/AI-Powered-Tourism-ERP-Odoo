@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- LIST VIEW -->
+    <record id="view_safety_list" model="ir.ui.view">
+        <field name="name">srk.safety.alert.list</field>
+        <field name="model">srk.safety.alert</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="severity in ['high','critical']"
+                  decoration-warning="severity == 'medium'"
+                  decoration-success="severity == 'low'">
+                <field name="location"/>
+                <field name="country"/>
+                <field name="alert_type"/>
+                <field name="severity"/>
+                <field name="date_issued"/>
+                <field name="is_active"/>
+                <field name="issued_by"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- FORM VIEW -->
+    <record id="view_safety_form" model="ir.ui.view">
+        <field name="name">srk.safety.alert.form</field>
+        <field name="model">srk.safety.alert</field>
+        <field name="arch" type="xml">
+            <form string="Safety Alert">
+
+                <!-- STATUS BAR -->
+                <header>
+                    <field name="severity" widget="statusbar"
+                           statusbar_visible="low,medium,high,critical"/>
+                </header>
+
+                <sheet>
+
+                    <!-- STEP 1 — Input -->
+                    <group string="📍 Step 1 — Enter Destination">
+                        <field name="location"
+                               placeholder="e.g. Dubai Marina, New Delhi, Gaza City..."/>
+                        <field name="country"/>
+                        <field name="alert_type"/>
+                    </group>
+
+                    <!-- GENERATE BUTTON -->
+                    <div style="padding:10px 0 18px 0;">
+                        <button name="action_generate_safety_report"
+                                string="🔍 Generate Live Safety Report"
+                                type="object"
+                                class="btn-primary"
+                                style="font-size:14px;padding:10px 28px;"/>
+                    </div>
+
+                    <!-- AUTO-FILLED META -->
+                    <group string="📋 Report Details" col="4">
+                        <field name="severity"    readonly="1"/>
+                        <field name="date_issued" readonly="1"/>
+                        <field name="is_active"   readonly="1"/>
+                        <field name="issued_by"   readonly="1"/>
+                    </group>
+
+                    <!-- PDF DOWNLOAD -->
+                    <div style="padding:8px 0 14px 0;">
+                        <field name="report_pdf"
+                               widget="binary"
+                               filename="report_pdf_name"
+                               string="⬇️ Download PDF Report"
+                               invisible="not report_pdf"/>
+                    </div>
+
+                    <!-- AI REPORT HTML OUTPUT -->
+                    <div style="margin-top:6px;">
+                        <field name="ai_safety_report"
+                               nolabel="1"
+                               widget="html"/>
+                    </div>
+
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- LIST ACTION -->
+    <record id="action_safety" model="ir.actions.act_window">
+        <field name="name">⚠️ Safety Alerts</field>
+        <field name="res_model">srk.safety.alert</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- GRAPH VIEW -->
+    <record id="view_safety_graph" model="ir.ui.view">
+        <field name="name">srk.safety.alert.graph</field>
+        <field name="model">srk.safety.alert</field>
+        <field name="arch" type="xml">
+            <graph string="Alerts by Severity" type="pie">
+                <field name="severity" type="row"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- ANALYTICS ACTION -->
+    <record id="action_safety_analytics" model="ir.actions.act_window">
+        <field name="name">🛡️ Safety Analytics</field>
+        <field name="res_model">srk.safety.alert</field>
+        <field name="view_mode">graph,list</field>
+    </record>
+
+</odoo>

@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- HOTEL MASTER VIEWS -->
+    <record id="view_hotel_list" model="ir.ui.view">
+        <field name="name">srk.hotel.list</field>
+        <field name="model">srk.hotel</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="country"/>
+                <field name="star_rating"/>
+                <field name="price_per_night"/>
+                <field name="total_rooms"/>
+                <field name="available_rooms"/>
+                <field name="status"/>
+                <field name="booking_count"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_hotel_form" model="ir.ui.view">
+        <field name="name">srk.hotel.form</field>
+        <field name="model">srk.hotel</field>
+        <field name="arch" type="xml">
+            <form string="Hotel">
+                <sheet>
+                    <group string="Hotel Details">
+                        <field name="name"/>
+                        <field name="country"/>
+                        <field name="star_rating"/>
+                        <field name="address"/>
+                        <field name="status"/>
+                    </group>
+                    <group string="Pricing and Rooms">
+                        <field name="price_per_night"/>
+                        <field name="total_rooms"/>
+                        <field name="available_rooms"/>
+                    </group>
+                    <group string="Amenities">
+                        <field name="amenities" nolabel="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Bookings">
+                            <field name="booking_ids">
+                                <list>
+                                    <field name="booking_ref"/>
+                                    <field name="tourist_id"/>
+                                    <field name="checkin_date"/>
+                                    <field name="checkout_date"/>
+                                    <field name="total_amount"/>
+                                    <field name="booking_status"/>
+                                    <field name="payment_status"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_hotel" model="ir.actions.act_window">
+        <field name="name">Hotels</field>
+        <field name="res_model">srk.hotel</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- BOOKING VIEWS -->
+    <record id="view_booking_list" model="ir.ui.view">
+        <field name="name">srk.booking.list</field>
+        <field name="model">srk.booking</field>
+        <field name="arch" type="xml">
+            <list decoration-success="booking_status == 'completed'"
+                  decoration-warning="booking_status == 'confirmed'"
+                  decoration-danger="booking_status == 'cancelled'">
+                <field name="booking_ref"/>
+                <field name="tourist_id"/>
+                <field name="hotel_id"/>
+                <field name="checkin_date"/>
+                <field name="checkout_date"/>
+                <field name="num_nights"/>
+                <field name="total_amount"/>
+                <field name="payment_status"/>
+                <field name="booking_status"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_booking_form" model="ir.ui.view">
+        <field name="name">srk.booking.form</field>
+        <field name="model">srk.booking</field>
+        <field name="arch" type="xml">
+            <form string="Tour Booking">
+                <header>
+                    <button name="action_confirm"  string="Confirm"
+                            type="object" class="btn-primary"
+                            invisible="booking_status != 'draft'"/>
+                    <button name="action_checkin"  string="Check In"
+                            type="object" class="btn-primary"
+                            invisible="booking_status != 'confirmed'"/>
+                    <button name="action_complete" string="Complete"
+                            type="object" class="btn-primary"
+                            invisible="booking_status != 'checked_in'"/>
+                    <button name="action_cancel"   string="Cancel"
+                            type="object" class="btn-danger"
+                            invisible="booking_status in ['completed','cancelled']"/>
+                    <field name="booking_status" widget="statusbar"
+                           statusbar_visible="draft,confirmed,checked_in,completed"/>
+                </header>
+
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="booking_ref" readonly="1"/></h1>
+                    </div>
+
+                    <group string="Tourist and Destination">
+                        <field name="tourist_id"/>
+                        <field name="destination"/>
+                        <field name="budget_usd"/>
+                        <field name="transport_mode"/>
+                        <field name="num_travelers"/>
+                    </group>
+
+                    <group string="Dates">
+                        <field name="checkin_date"/>
+                        <field name="checkout_date"/>
+                        <field name="num_nights" readonly="1"/>
+                    </group>
+
+                    <!-- Hotel search preferences -->
+                    <group string="Hotel Search Preferences">
+                        <field name="preferred_stars"/>
+                        <field name="preferred_max_price"
+                               placeholder="0 = use total budget"/>
+                    </group>
+
+                    <!-- Two search buttons stacked -->
+                    <div style="padding:12px 0 4px 0;">
+                        <div style="margin-bottom:8px;">
+                            <button name="action_get_flights"
+                                    string="Find Flights"
+                                    type="object"
+                                    class="btn-primary"
+                                    style="min-width:170px;font-size:14px;"/>
+                        </div>
+                        <div>
+                            <button name="action_get_hotels"
+                                    string="Find Hotels"
+                                    type="object"
+                                    class="btn-primary"
+                                    style="min-width:170px;font-size:14px;"/>
+                        </div>
+                    </div>
+
+                    <!-- Only 2 tabs: Flights and Hotels -->
+                    <notebook>
+                        <page string="Flight Options">
+                            <field name="flight_info" nolabel="1" widget="html"/>
+                        </page>
+                        <page string="Hotel Recommendations">
+                            <field name="hotel_recommendations" nolabel="1" widget="html"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_booking" model="ir.actions.act_window">
+        <field name="name">Bookings</field>
+        <field name="res_model">srk.booking</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Analytics -->
+    <record id="view_booking_pivot" model="ir.ui.view">
+        <field name="name">srk.booking.pivot</field>
+        <field name="model">srk.booking</field>
+        <field name="arch" type="xml">
+            <pivot string="Booking Analytics">
+                <field name="tourist_id" type="row"/>
+                <field name="total_amount" type="measure"/>
+                <field name="num_nights" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_booking_graph" model="ir.ui.view">
+        <field name="name">srk.booking.graph</field>
+        <field name="model">srk.booking</field>
+        <field name="arch" type="xml">
+            <graph string="Revenue Chart" type="bar">
+                <field name="booking_status" type="row"/>
+                <field name="total_amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_booking_analytics" model="ir.actions.act_window">
+        <field name="name">Booking Analytics</field>
+        <field name="res_model">srk.booking</field>
+        <field name="view_mode">graph,pivot,list</field>
+    </record>
+
+</odoo>

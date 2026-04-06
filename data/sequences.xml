@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="seq_srk_booking" model="ir.sequence">
+        <field name="name">SRK Booking Reference</field>
+        <field name="code">srk.booking</field>
+        <field name="prefix">SRK/</field>
+        <field name="padding">5</field>
+        <field name="number_next">1</field>
+        <field name="number_increment">1</field>
+    </record>
+</odoo>

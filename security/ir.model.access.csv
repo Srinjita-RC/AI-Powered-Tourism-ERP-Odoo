@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_tourist,access.tourist,model_tourist_profile,,1,1,1,1
+access_hotel,access.hotel,model_srk_hotel,,1,1,1,1
+access_booking,access.booking,model_srk_booking,,1,1,1,1
+access_safety,access.safety,model_srk_safety_alert,,1,1,1,1
+access_dashboard,access.dashboard,model_srk_analytics_dashboard,,1,1,1,1
