@@ -116,21 +116,6 @@ custom_addons/srk_tourism_erp/
 
 ---
 
-## 🔄 Status Workflow
-
-```
-[Draft] ──► [Planned] ──► [Optimized] ──► [Done]
-               │                              │
-         Email sent to                  Email sent to
-           tourist                        tourist
-               │
-         AI Plan Generated
-         PDF Available
-         Crowd Map Active
-```
-
----
-
 ## 📱 Module Screens
 
 | Screen | Description |
@@ -140,7 +125,7 @@ custom_addons/srk_tourism_erp/
 | Analytics Dashboard | Charts, KPIs, tourist trends |
 | Safety Alerts | Destination-wise safety status |
 | PDF Itinerary | Auto-generated branded PDF (multi-language) |
-| Public Booking Page | Standalone page with live crowd heatmap |
+| Public Booking Page | Standalone page |
 
 ---
 
