@@ -1584,73 +1584,175 @@ class TouristProfile(models.Model):
     def action_download_pdf(self):
         import io
         import base64
+        import os
         try:
             from reportlab.lib.pagesizes import A4
             from reportlab.lib.styles import ParagraphStyle
-            from reportlab.lib.colors import HexColor, white, black
+            from reportlab.lib.colors import HexColor, white
             from reportlab.platypus import (
                 SimpleDocTemplate, Paragraph, Spacer,
                 HRFlowable, Table, TableStyle, KeepTogether
             )
             from reportlab.lib.units import cm
-            from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+            from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+            from reportlab.pdfbase import pdfmetrics
+            from reportlab.pdfbase.ttfonts import TTFont
+
+            # ── Font directory ─────────────────────────────────────────────
+            module_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            font_dir    = os.path.join(module_path, 'static', 'fonts')
+
+            def reg(name, filename):
+                """Try to register a font; return True if successful."""
+                path = os.path.join(font_dir, filename)
+                if os.path.exists(path):
+                    try:
+                        pdfmetrics.registerFont(TTFont(name, path))
+                        return True
+                    except Exception:
+                        return False
+                return False
+
+            # Register all fonts — each covers a different script
+            reg('NotoSans',       'NotoSans-Regular.ttf')
+            reg('NotoSans-Bold',  'NotoSans-Bold.ttf')
+            reg('NotoDevanagari', 'NotoSansDevanagari-Regular.ttf')  # Hindi
+            reg('NotoArabic',     'NotoSansArabic-Regular.ttf')      # Arabic
+            reg('NotoJP',         'NotoSansJP-Regular.ttf')          # Japanese  ← .ttf not .otf
+            reg('NotoKR',         'NotoSansKR-Regular.ttf')          # Korean
+            reg('NotoSC',         'NotoSansSC-Regular.ttf')          # Chinese Simplified
+
+            # ── Language → font mapping ────────────────────────────────────
+            LANG_FONT_MAP = {
+                'hi': ('NotoDevanagari', 'NotoDevanagari'),
+                'ar': ('NotoArabic',     'NotoArabic'),
+                'ja': ('NotoJP',         'NotoJP'),
+                'ko': ('NotoKR',         'NotoKR'),
+                'zh': ('NotoSC',         'NotoSC'),
+            }
 
             for rec in self:
-                buf        = io.BytesIO()
+                lang_code = rec.language or 'en'
+
+                font_pair      = LANG_FONT_MAP.get(lang_code, ('NotoSans', 'NotoSans-Bold'))
+                FONT_NORMAL, FONT_BOLD_NAME = font_pair
+
+                all_names = list(pdfmetrics._fonts.keys())
+
+                # Fall back to Helvetica if the chosen font failed to register
+                if FONT_NORMAL not in all_names:
+                    FONT_NORMAL    = 'Helvetica'
+                    FONT_BOLD_NAME = 'Helvetica-Bold'
+
+                # CJK / script fonts often have no separate bold variant
+                if FONT_BOLD_NAME not in all_names:
+                    FONT_BOLD_NAME = FONT_NORMAL
+
+                # ── Arabic reshaping helper ────────────────────────────────
+                def reshape_arabic(text):
+                    """Apply Arabic reshaping + bidi so ReportLab renders RTL correctly."""
+                    try:
+                        import arabic_reshaper
+                        from bidi.algorithm import get_display
+                        return get_display(arabic_reshaper.reshape(text))
+                    except ImportError:
+                        return text  # graceful fallback if libs missing
+
+                # ── PDF text sanitiser ─────────────────────────────────────
+                def esc(txt):
+                    return txt.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
+                EMOJI_RE = re.compile(
+                    u'[\U0001F300-\U0001F9FF'
+                    u'\U00002700-\U000027BF'
+                    u'\U0001F600-\U0001F64F]+'
+                )
+
+                def pdf_text(txt):
+                    if lang_code == 'ar':
+                        txt = reshape_arabic(txt)
+                        txt = EMOJI_RE.sub('', txt)
+                        return esc(txt.strip())
+                    if lang_code in ('hi', 'ja', 'ko', 'zh', 'ru'):
+                        txt = EMOJI_RE.sub('', txt)
+                    else:
+                        txt = re.sub(r'[^\x00-\x7F]', '', txt)
+                    return esc(txt.strip())
+
+                # ── Page metrics ───────────────────────────────────────────
+                buf            = io.BytesIO()
                 PAGE_W, PAGE_H = A4
+                col_w          = PAGE_W - 3.6 * cm
+
                 ORANGE     = HexColor('#FF6B35')
                 LIGHT_GRAY = HexColor('#F8F8F8')
                 MID_GRAY   = HexColor('#888888')
                 DARK       = HexColor('#1A1A1A')
                 RULE_GRAY  = HexColor('#E0E0E0')
 
-                today_str  = date.today().strftime('%d %B %Y')
-                dest_name  = dict(rec._fields['destination'].selection).get(
+                today_str = date.today().strftime('%d %B %Y')
+
+                dest_name = dict(rec._fields['destination'].selection).get(
                     rec.destination, rec.destination or 'N/A'
                 )
+                dest_name_clean = re.sub(
+                    u'[\U0001F300-\U0001F9FF\U00002700-\U000027BF\U0001F600-\U0001F64F\U0001F1E0-\U0001F1FF]+',
+                    '', dest_name
+                ).strip()
+
                 checkin_str  = rec.checkin_date.strftime('%d %b %Y')  if rec.checkin_date  else '—'
                 checkout_str = rec.checkout_date.strftime('%d %b %Y') if rec.checkout_date else '—'
 
-                # ── Styles ────────────────────────────────────────────
+                # ── Style factory ──────────────────────────────────────────
                 def S(name, **kw):
-                    defaults = dict(fontName='Helvetica', fontSize=10,
-                                    textColor=DARK, leading=14, spaceAfter=0)
+                    defaults = dict(
+                        fontName=FONT_NORMAL, fontSize=10,
+                        textColor=DARK, leading=14, spaceAfter=0
+                    )
                     defaults.update(kw)
-                    return ParagraphStyle(name, **defaults)
+                    return ParagraphStyle(name + '_' + lang_code, **defaults)
 
-                title_bold  = S('TB',  fontName='Helvetica-Bold', fontSize=28, textColor=DARK, leading=32)
-                title_light = S('TL',  fontName='Helvetica',      fontSize=28, textColor=MID_GRAY, leading=32)
-                meta_label  = S('ML',  fontName='Helvetica-Bold', fontSize=9,  textColor=DARK)
-                meta_val    = S('MV',  fontName='Helvetica',      fontSize=9,  textColor=MID_GRAY)
-                sec_head    = S('SH',  fontName='Helvetica-Bold', fontSize=11, textColor=DARK, spaceBefore=14, spaceAfter=4)
-                body        = S('BD',  fontName='Helvetica',      fontSize=9,  textColor=DARK, leading=13)
-                body_bold   = S('BDB', fontName='Helvetica-Bold', fontSize=9,  textColor=DARK, leading=13)
-                small_gray  = S('SG',  fontName='Helvetica',      fontSize=8,  textColor=MID_GRAY, leading=11)
-                day_label   = S('DL',  fontName='Helvetica-Bold', fontSize=9,  textColor=white,
+                title_bold  = S('TB',  fontName=FONT_BOLD_NAME, fontSize=26, textColor=DARK,     leading=30)
+                title_light = S('TL',  fontName=FONT_NORMAL,    fontSize=26, textColor=MID_GRAY, leading=30)
+                meta_label  = S('ML',  fontName=FONT_BOLD_NAME, fontSize=9,  textColor=DARK)
+                body        = S('BD',  fontName=FONT_NORMAL,    fontSize=9,  textColor=DARK,     leading=13)
+                body_bold   = S('BDB', fontName=FONT_BOLD_NAME, fontSize=9,  textColor=DARK,     leading=13)
+                small_gray  = S('SG',  fontName=FONT_NORMAL,    fontSize=8,  textColor=MID_GRAY, leading=11)
+                sec_head    = S('SH',  fontName=FONT_BOLD_NAME, fontSize=11, textColor=DARK,
+                                spaceBefore=14, spaceAfter=4)
+                day_label   = S('DL',  fontName=FONT_BOLD_NAME, fontSize=9,  textColor=white,
                                 alignment=TA_CENTER)
-                time_cell   = S('TC',  fontName='Helvetica-Bold', fontSize=9,  textColor=DARK)
-                act_cell    = S('AC',  fontName='Helvetica',      fontSize=9,  textColor=DARK, leading=13)
-                act_title   = S('AT',  fontName='Helvetica-Bold', fontSize=10, textColor=DARK)
-                footer_s    = S('FS',  fontName='Helvetica',      fontSize=7,  textColor=MID_GRAY,
+                time_cell   = S('TC',  fontName=FONT_BOLD_NAME, fontSize=9,  textColor=DARK)
+                act_cell    = S('AC',  fontName=FONT_NORMAL,    fontSize=9,  textColor=DARK,     leading=13)
+                act_title   = S('AT',  fontName=FONT_BOLD_NAME, fontSize=10, textColor=DARK)
+                footer_s    = S('FS',  fontName=FONT_NORMAL,    fontSize=7,  textColor=MID_GRAY,
                                 alignment=TA_CENTER)
+                disc_s      = S('DS',  fontName=FONT_NORMAL,    fontSize=8,  textColor=MID_GRAY, leading=12)
 
+                # ── Arabic RTL overrides ───────────────────────────────────
+                if lang_code == 'ar':
+                    for st in [body, body_bold, act_cell, act_title, time_cell,
+                               sec_head, small_gray, disc_s, footer_s]:
+                        st.alignment = TA_RIGHT
+                        st.wordWrap  = 'RTL'
+
+                # ── Document ───────────────────────────────────────────────
                 doc = SimpleDocTemplate(
                     buf, pagesize=A4,
                     leftMargin=1.8*cm, rightMargin=1.8*cm,
-                    topMargin=1.5*cm, bottomMargin=1.8*cm
+                    topMargin=1.5*cm,  bottomMargin=1.8*cm
                 )
                 story = []
-                col_w = PAGE_W - 3.6*cm   # usable width
 
-                # ══════════════════════════════════════════════════════
-                # SECTION 1 — TITLE HEADER
-                # ══════════════════════════════════════════════════════
+                # ══════════════════════════════════════════════════════════
+                # HEADER
+                # ══════════════════════════════════════════════════════════
                 title_tbl = Table([[
-                    Paragraph('<b>Trip</b>', title_bold),
+                    Paragraph('Trip',      title_bold),
                     Paragraph('Itinerary', title_light),
                 ]], colWidths=[col_w * 0.28, col_w * 0.72])
                 title_tbl.setStyle(TableStyle([
-                    ('VALIGN',  (0,0), (-1,-1), 'BOTTOM'),
+                    ('VALIGN',       (0,0), (-1,-1), 'BOTTOM'),
                     ('LEFTPADDING',  (0,0), (-1,-1), 0),
                     ('RIGHTPADDING', (0,0), (-1,-1), 0),
                     ('BOTTOMPADDING',(0,0), (-1,-1), 0),
@@ -1660,11 +1762,11 @@ class TouristProfile(models.Model):
                 story.append(Spacer(1, 4))
                 story.append(HRFlowable(width='100%', thickness=2, color=ORANGE, spaceAfter=10))
 
-                # ── Meta row ─────────────────────────────────────────
+                # Meta row
                 meta_tbl = Table([[
-                    Paragraph(f'<b>Start Date</b>  {checkin_str}',  meta_label),
-                    Paragraph(f'<b>End Date</b>  {checkout_str}',   meta_label),
-                    Paragraph(f'<b>Destination</b>  {dest_name}',   meta_label),
+                    Paragraph(f'Start: {checkin_str}',            meta_label),
+                    Paragraph(f'End: {checkout_str}',             meta_label),
+                    Paragraph(f'Destination: {dest_name_clean}',  meta_label),
                 ]], colWidths=[col_w/3]*3)
                 meta_tbl.setStyle(TableStyle([
                     ('LEFTPADDING',  (0,0), (-1,-1), 0),
@@ -1675,7 +1777,21 @@ class TouristProfile(models.Model):
                 story.append(meta_tbl)
                 story.append(HRFlowable(width='100%', thickness=0.5, color=RULE_GRAY, spaceAfter=14))
 
-                # ── Tourist summary chips ─────────────────────────────
+                # Language notice
+                lang_names = {
+                    'hi':'Hindi', 'en':'English',    'fr':'French',
+                    'de':'German','es':'Spanish',    'ja':'Japanese',
+                    'zh':'Mandarin','ar':'Arabic',   'pt':'Portuguese',
+                    'ru':'Russian','ko':'Korean',    'it':'Italian',
+                }
+                lang_display = lang_names.get(lang_code, 'English')
+                story.append(Paragraph(
+                    f'Itinerary language: {lang_display}  |  Generated: {today_str}',
+                    disc_s
+                ))
+                story.append(Spacer(1, 8))
+
+                # ── Tourist summary box ────────────────────────────────────
                 interests = []
                 if rec.interest_adventure:   interests.append("Adventure")
                 if rec.interest_food:        interests.append("Food")
@@ -1686,15 +1802,19 @@ class TouristProfile(models.Model):
                 if rec.interest_photography: interests.append("Photography")
                 if rec.interest_shopping:    interests.append("Shopping")
 
-                summary_data = [
-                    [
-                        Paragraph(f'<b>Tourist</b><br/>{rec.name}',            body),
-                        Paragraph(f'<b>Duration</b><br/>{rec.num_days} nights', body),
-                        Paragraph(f'<b>Budget</b><br/>{rec.budget_amount} {rec.currency}', body),
-                        Paragraph(f'<b>Transport</b><br/>{rec.transport or "N/A"}', body),
-                        Paragraph(f'<b>Tier</b><br/>{(rec.budget_tier or "N/A").split("(")[0].strip()}', body),
-                    ]
-                ]
+                # Keep native script for non-Latin languages; strip non-ASCII for Latin
+                name_clean = (
+                    rec.name if lang_code in ('hi', 'ar', 'ja', 'ko', 'zh','ru')
+                    else re.sub(r'[^\x00-\x7F]', '', rec.name).strip()
+                )
+
+                summary_data = [[
+                    Paragraph(f'Tourist\n{name_clean}',                          body),
+                    Paragraph(f'Duration\n{rec.num_days} nights',                body),
+                    Paragraph(f'Budget\n{rec.budget_amount} {rec.currency}',     body),
+                    Paragraph(f'Transport\n{rec.transport or "N/A"}',            body),
+                    Paragraph(f'Tier\n{(rec.budget_tier or "N/A").split("(")[0].strip()}', body),
+                ]]
                 summary_tbl = Table(summary_data, colWidths=[col_w/5]*5)
                 summary_tbl.setStyle(TableStyle([
                     ('BACKGROUND',   (0,0), (-1,-1), LIGHT_GRAY),
@@ -1709,223 +1829,191 @@ class TouristProfile(models.Model):
                 story.append(summary_tbl)
                 story.append(Spacer(1, 16))
 
-                # ══════════════════════════════════════════════════════
-                # SECTION 2 — PARSE AI PLAN INTO STRUCTURED DAYS
-                # ══════════════════════════════════════════════════════
+                # ══════════════════════════════════════════════════════════
+                # PARSE AI PLAN
+                # ══════════════════════════════════════════════════════════
                 raw_plan = rec.plan or ''
 
-                # Clean markdown
-                def clean(txt):
-                    txt = re.sub(r'#{1,6}\s*', '', txt)      # remove ### headings
-                    txt = re.sub(r'\*\*(.*?)\*\*', r'\1', txt) # remove **bold**
-                    txt = re.sub(r'\*(.*?)\*', r'\1', txt)    # remove *italic*
-                    txt = txt.strip()
-                    return txt
+                def clean_line(txt):
+                    txt = re.sub(r'#{1,6}\s*', '', txt)
+                    txt = re.sub(r'\*\*(.*?)\*\*', r'\1', txt)
+                    txt = re.sub(r'\*(.*?)\*',     r'\1', txt)
+                    return txt.strip()
 
-                # Parse lines into sections
-                sections   = {}   # {'FLIGHT': [...lines], 'HOTEL': [...], 'DAY': {1:[...], 2:[...]}}
-                days_data  = {}   # {day_number: {'title': str, 'rows': [(time, activity)]}}
-                misc_sections = {}# other named sections
-
-                current_section = None
-                current_day     = None
+                days_data     = {}
+                misc_sections = {}
+                current_section   = None
+                current_day       = None
                 current_day_title = ''
 
-                DAY_RE     = re.compile(r'^Day\s+(\d+)[:\-–]?\s*(.*)', re.IGNORECASE)
+                DAY_RE     = re.compile(r'^Day\s+(\d+)[:\-\u2013]?\s*(.*)', re.IGNORECASE)
                 SECTION_RE = re.compile(
                     r'(FLIGHT|HOTEL|BUDGET|UNIQUE|SAFETY|PACKING|ARRIVAL|EXPERIENCE)',
                     re.IGNORECASE
                 )
-                MEAL_RE    = re.compile(
-                    r'^(Morning|Afternoon|Evening|Breakfast|Lunch|Dinner|Night)[:\-]?\s*(.*)',
+                MEAL_RE = re.compile(
+                    r'^(Morning|Afternoon|Evening|Breakfast|Lunch|Dinner|Night'
+                    r'|\u5348\u524d|\u5348\u5f8c|\u591c'            # Japanese 午前/午後/夜
+                    r'|\uc544\uce68|\uc624\ud6c4|\uc800\ub141'      # Korean   아침/오후/저녁
+                    r'|\u65e9\u4e0a|\u4e0b\u5348|\u665a\u4e0a'     # Chinese  早上/下午/晚上
+                    r'|\u0938\u0941\u092c\u0939|\u0936\u093e\u092e' # Hindi    सुबह/शाम
+                    r'|\u0635\u0628\u0627\u062d|\u0645\u0633\u0627\u0621'  # Arabic صباح/مساء
+                    r')[:\-]?\s*(.*)',
                     re.IGNORECASE
                 )
-                TIME_RE    = re.compile(r'^\d+:\d+\s*(AM|PM)', re.IGNORECASE)
 
                 for raw_line in raw_plan.split('\n'):
-                    line = clean(raw_line)
+                    line = clean_line(raw_line)
                     if not line:
                         continue
 
-                    # Day header?
                     day_match = DAY_RE.match(line)
                     if day_match:
-                        current_day = int(day_match.group(1))
+                        current_day       = int(day_match.group(1))
                         current_day_title = day_match.group(2).strip() or f'Day {current_day}'
-                        current_section = 'DAY'
+                        current_section   = 'DAY'
                         if current_day not in days_data:
                             days_data[current_day] = {'title': current_day_title, 'rows': []}
                         continue
 
-                    # Section header (not a day)?
                     sec_match = SECTION_RE.search(line)
                     if sec_match and not DAY_RE.match(line) and len(line) < 60:
                         current_section = sec_match.group(1).upper()
-                        current_day = None
+                        current_day     = None
                         if current_section not in misc_sections:
                             misc_sections[current_section] = []
                         continue
 
-                    # Inside a day?
                     if current_section == 'DAY' and current_day is not None:
-                        meal_m = MEAL_RE.match(line.lstrip('- •*'))
-                        time_m = TIME_RE.match(line.lstrip('- •*'))
+                        meal_m = MEAL_RE.match(line.lstrip('- \u2022*'))
                         if meal_m:
-                            time_label = meal_m.group(1).capitalize()
-                            activity   = meal_m.group(2).strip()
-                            days_data[current_day]['rows'].append((time_label, activity))
-                        elif time_m:
-                            days_data[current_day]['rows'].append(('', line.lstrip('- •*')))
-                        elif line.startswith('- ') or line.startswith('• ') or line.startswith('* '):
+                            days_data[current_day]['rows'].append(
+                                (meal_m.group(1).capitalize(), meal_m.group(2).strip())
+                            )
+                        elif line.startswith('- ') or line.startswith('\u2022 ') or line.startswith('* '):
                             days_data[current_day]['rows'].append(('', line[2:].strip()))
                         else:
                             days_data[current_day]['rows'].append(('', line))
                         continue
 
-                    # Inside a misc section?
                     if current_section and current_section in misc_sections:
                         misc_sections[current_section].append(line)
 
-                # ══════════════════════════════════════════════════════
-                # SECTION 3 — RENDER DAY TABLES (like the image)
-                # ══════════════════════════════════════════════════════
+                # ── Render day-by-day tables ───────────────────────────────
                 if days_data:
                     story.append(Paragraph('Day-by-Day Itinerary', sec_head))
                     story.append(HRFlowable(width='100%', thickness=1, color=ORANGE, spaceAfter=10))
 
-                DAY_COL  = 1.0*cm
-                TIME_COL = 2.2*cm
+                DAY_COL  = 1.0 * cm
+                TIME_COL = 2.2 * cm
                 ACT_COL  = col_w - DAY_COL - TIME_COL
 
                 for day_num in sorted(days_data.keys()):
                     day_info = days_data[day_num]
-                    title    = day_info['title']
                     rows     = day_info['rows']
                     if not rows:
                         continue
 
-                    # Header row of this day's table
+                    title_clean = pdf_text(day_info['title'])
                     tbl_rows = [[
                         Paragraph(f'DAY {day_num}', day_label),
-                        Paragraph('Time', time_cell),
-                        Paragraph(f'Activity — {title}', act_title),
+                        Paragraph('Time',           time_cell),
+                        Paragraph(f'Activity — {title_clean}', act_title),
                     ]]
-
-                    # Data rows
-                    for i, (t, a) in enumerate(rows):
+                    for t, a in rows:
                         tbl_rows.append([
                             '',
-                            Paragraph(t,  time_cell),
-                            Paragraph(a,  act_cell),
+                            Paragraph(pdf_text(t), time_cell),
+                            Paragraph(pdf_text(a), act_cell),
                         ])
 
-                    n = len(tbl_rows)
+                    n       = len(tbl_rows)
                     day_tbl = Table(tbl_rows, colWidths=[DAY_COL, TIME_COL, ACT_COL])
-
-                    ts = TableStyle([
-                        # DAY label cell spans all rows
-                        ('SPAN',          (0,0), (0, n-1)),
-                        ('BACKGROUND',    (0,0), (0, n-1),  ORANGE),
-                        ('VALIGN',        (0,0), (0, n-1),  'MIDDLE'),
-                        ('ALIGN',         (0,0), (0, n-1),  'CENTER'),
-                        # Header row
-                        ('BACKGROUND',    (1,0), (2,0),     LIGHT_GRAY),
-                        ('FONTNAME',      (1,0), (2,0),     'Helvetica-Bold'),
-                        ('FONTSIZE',      (1,0), (2,0),     9),
-                        # All cells
-                        ('FONTSIZE',      (1,1), (-1,-1),   9),
-                        ('VALIGN',        (1,0), (-1,-1),   'TOP'),
-                        ('TOPPADDING',    (0,0), (-1,-1),   6),
-                        ('BOTTOMPADDING', (0,0), (-1,-1),   6),
-                        ('LEFTPADDING',   (0,0), (-1,-1),   6),
-                        ('RIGHTPADDING',  (0,0), (-1,-1),   6),
-                        # Dotted lines between rows
-                        ('LINEBELOW',     (1,0), (-1,-2),   0.5, RULE_GRAY),
-                        # Outer box
-                        ('BOX',           (0,0), (-1,-1),   0.5, RULE_GRAY),
-                    ])
-                    day_tbl.setStyle(ts)
-
+                    day_tbl.setStyle(TableStyle([
+                        ('SPAN',            (0,0), (0, n-1)),
+                        ('BACKGROUND',      (0,0), (0, n-1),  ORANGE),
+                        ('VALIGN',          (0,0), (0, n-1),  'MIDDLE'),
+                        ('ALIGN',           (0,0), (0, n-1),  'CENTER'),
+                        ('BACKGROUND',      (1,0), (2,0),     LIGHT_GRAY),
+                        ('FONTNAME',        (1,0), (2,0),     FONT_BOLD_NAME),
+                        ('FONTSIZE',        (0,0), (-1,-1),   9),
+                        ('VALIGN',          (1,0), (-1,-1),   'TOP'),
+                        ('TOPPADDING',      (0,0), (-1,-1),   6),
+                        ('BOTTOMPADDING',   (0,0), (-1,-1),   6),
+                        ('LEFTPADDING',     (0,0), (-1,-1),   6),
+                        ('RIGHTPADDING',    (0,0), (-1,-1),   6),
+                        ('LINEBELOW',       (1,0), (-1,-2),   0.5, RULE_GRAY),
+                        ('BOX',             (0,0), (-1,-1),   0.5, RULE_GRAY),
+                    ]))
                     story.append(KeepTogether([day_tbl, Spacer(1, 10)]))
 
-                # ══════════════════════════════════════════════════════
-                # SECTION 4 — MISC SECTIONS (Hotels, Budget, Packing etc)
-                # ══════════════════════════════════════════════════════
+                # ── Misc sections ──────────────────────────────────────────
                 SECTION_TITLES = {
-                    'FLIGHT':     '✈ Flight & Arrival Details',
-                    'HOTEL':      '🏨 Hotel Recommendations',
-                    'BUDGET':     '💰 Budget Breakdown',
-                    'UNIQUE':     '🎯 Unique Experiences',
-                    'EXPERIENCE': '🎯 Unique Experiences',
-                    'SAFETY':     '⚠ Safety & Travel Tips',
-                    'PACKING':    '🎒 Packing List',
+                    'FLIGHT':     'Flight & Arrival Details',
+                    'HOTEL':      'Hotel Recommendations',
+                    'BUDGET':     'Budget Breakdown',
+                    'UNIQUE':     'Unique Experiences',
+                    'EXPERIENCE': 'Unique Experiences',
+                    'SAFETY':     'Safety & Travel Tips',
+                    'PACKING':    'Packing List',
                 }
-
                 for sec_key, lines in misc_sections.items():
                     if not lines:
                         continue
-                    title_text = SECTION_TITLES.get(sec_key, sec_key.title())
-                    sec_block  = [
+                    sec_block = [
                         Spacer(1, 6),
-                        Paragraph(title_text, sec_head),
+                        Paragraph(SECTION_TITLES.get(sec_key, sec_key.title()), sec_head),
                         HRFlowable(width='100%', thickness=0.5, color=ORANGE, spaceAfter=6),
                     ]
                     for line in lines:
                         line = line.strip()
                         if not line:
                             continue
+                        pt = pdf_text(line)
                         if line.startswith('- ') or line.startswith('• ') or line.startswith('* '):
-                            sec_block.append(Paragraph(f'•  {line[2:].strip()}', body))
+                            sec_block.append(Paragraph(f'•  {pdf_text(line[2:].strip())}', body))
                         elif re.match(r'^\d+\.', line):
-                            sec_block.append(Paragraph(line, body))
+                            sec_block.append(Paragraph(pt, body))
                         elif 'TOTAL' in line.upper():
-                            sec_block.append(Spacer(1, 4))
-                            total_tbl = Table([[Paragraph(line, body_bold)]], colWidths=[col_w])
+                            total_tbl = Table([[Paragraph(pt, body_bold)]], colWidths=[col_w])
                             total_tbl.setStyle(TableStyle([
-                                ('BACKGROUND',   (0,0), (-1,-1), LIGHT_GRAY),
-                                ('BOX',          (0,0), (-1,-1), 0.5, RULE_GRAY),
-                                ('LEFTPADDING',  (0,0), (-1,-1), 10),
-                                ('TOPPADDING',   (0,0), (-1,-1), 6),
-                                ('BOTTOMPADDING',(0,0), (-1,-1), 6),
+                                ('BACKGROUND',    (0,0), (-1,-1), LIGHT_GRAY),
+                                ('BOX',           (0,0), (-1,-1), 0.5, RULE_GRAY),
+                                ('LEFTPADDING',   (0,0), (-1,-1), 10),
+                                ('TOPPADDING',    (0,0), (-1,-1), 6),
+                                ('BOTTOMPADDING', (0,0), (-1,-1), 6),
                             ]))
                             sec_block.append(total_tbl)
-                            sec_block.append(Spacer(1, 4))
                         else:
-                            sec_block.append(Paragraph(line, body))
+                            sec_block.append(Paragraph(pt, body))
                         sec_block.append(Spacer(1, 2))
                     story.append(KeepTogether(sec_block))
 
-                # ══════════════════════════════════════════════════════
-                # SECTION 5 — INTERESTS & FOOTER
-                # ══════════════════════════════════════════════════════
+                # ── Interests + Footer ─────────────────────────────────────
                 if interests:
                     story.append(Spacer(1, 10))
                     story.append(HRFlowable(width='100%', thickness=0.5, color=RULE_GRAY))
                     story.append(Spacer(1, 6))
                     story.append(Paragraph(
-                        f'<b>Interests:</b>  {" · ".join(interests)}', small_gray
+                        f'Interests:  {" · ".join(interests)}', small_gray
                     ))
 
                 story.append(Spacer(1, 20))
                 story.append(HRFlowable(width='100%', thickness=0.5, color=RULE_GRAY))
                 story.append(Spacer(1, 4))
                 story.append(Paragraph(
-                    f'SRK Tourism  ·  {rec.name}  ·  {dest_name}  ·  Generated {today_str}',
+                    f'SRK Tourism  ·  {name_clean}  ·  {dest_name_clean}  ·  {today_str}',
                     footer_s
                 ))
 
-                # ══════════════════════════════════════════════════════
-                # BUILD & RETURN
-                # ══════════════════════════════════════════════════════
                 doc.build(story)
                 pdf_bytes = buf.getvalue()
 
                 fname = (
-                    f"Itinerary_{rec.name.replace(' ','_')}_"
-                    f"{(dest_name or 'Trip').replace(' ','_')}_"
-                    f"{today_str.replace(' ','_')}.pdf"
+                    f"Itinerary_{rec.name.replace(' ', '_')}_"
+                    f"{dest_name_clean.replace(' ', '_')}_"
+                    f"{today_str.replace(' ', '_')}.pdf"
                 )
-
                 attachment = self.env['ir.attachment'].create({
                     'name':      fname,
                     'type':      'binary',
@@ -1934,7 +2022,6 @@ class TouristProfile(models.Model):
                     'res_id':    rec.id,
                     'mimetype':  'application/pdf',
                 })
-
                 return {
                     'type':   'ir.actions.act_url',
                     'url':    f'/web/content/{attachment.id}?download=true',
@@ -1944,8 +2031,7 @@ class TouristProfile(models.Model):
         except ImportError:
             raise Exception(
                 "reportlab not installed. Run:\n"
-                "C:\\Users\\KHYATI\\Desktop\\odoo\\python\\python.exe "
-                "-m pip install reportlab"
+                "pip install reportlab --break-system-packages"
             )
         except Exception as e:
             raise Exception(f"PDF generation failed: {str(e)}")
@@ -2077,7 +2163,7 @@ Remember: {lang_instruction} Use REAL place names, restaurants, hotels."""
                             {"role": "user", "content": prompt}
                         ],
                         "temperature": 0.7,
-                        "max_tokens": 4000,
+                        "max_tokens": 6000,
                     },
                     timeout=60
                 )

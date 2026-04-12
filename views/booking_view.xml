@@ -76,7 +76,6 @@
                   decoration-danger="booking_status == 'cancelled'">
                 <field name="booking_ref"/>
                 <field name="tourist_id"/>
-                <field name="hotel_id"/>
                 <field name="checkin_date"/>
                 <field name="checkout_date"/>
                 <field name="num_nights"/>
