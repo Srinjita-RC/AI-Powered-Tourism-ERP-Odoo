@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # AI-Powered-Tourism-ERP-Odoo
 An AI integrated Tourism App developed on Odoo
 =======
@@ -187,3 +188,7 @@ custom_addons/srk_tourism_erp/
 **Rakshit Maheshwari**
 - 🎓 BITS Pilani, Dubai Campus
 >>>>>>> 12ab84f27527e1ca76d219e02f4392747407a2d2
+=======
+# AI-Powered-Tourism-ERP-Odoo
+An AI integrated Tourism App developed on Odoo
+>>>>>>> 899de0c54bf1e996fc0e8f39cc4e097113efbf1f
